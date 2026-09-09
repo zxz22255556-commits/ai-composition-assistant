@@ -83,8 +83,8 @@ exports.handler = async (event) => {
     }
 
     const apiKey = process.env.AI_API_KEY;
-    const model = process.env.AI_MODEL;
-    const baseURL = process.env.AI_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3';
+    const model = process.env.AI_MODEL || 'agnes-2.5-flash';
+    const baseURL = process.env.AI_BASE_URL || 'https://apihub.agnes-ai.com/v1';
     console.log('[analyze] env check - apiKey exists:', !!apiKey, 'model:', model, 'baseURL:', baseURL);
 
     if (!apiKey || !model) {
