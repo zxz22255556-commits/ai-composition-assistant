@@ -23,9 +23,39 @@
     border-radius: 20px; font-size: 12px; margin-bottom: 6px; }
   #advice { font-size: 13px; line-height: 1.4; max-height: 40px; overflow: hidden; }
   #advice .label { font-size: 10px; color: #94D8C3; font-weight: 600; margin-bottom: 1px; }
-  #flipBtn { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.15);
-    border: none; color: #fff; font-size: 20px; cursor: pointer;
-    display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  #flipBtn { width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.5);
+    border: none; color: #fff; font-size: 18px; cursor: pointer;
+    display: none; align-items: center; justify-content: center;
+    position: absolute; top: 16px; right: 16px; z-index: 15; backdrop-filter: blur(10px); }
+  #aiBtn {
+    position: absolute; bottom: 100px; right: 20px; z-index: 15;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: rgba(0,0,0,0.55); backdrop-filter: blur(10px);
+    border: 1.5px solid rgba(255,255,255,0.4);
+    color: #fff; font-size: 11px; font-weight: 600;
+    display: none; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; line-height: 1.2;
+  }
+  #aiBtn:active { transform: scale(0.92); }
+  #aiBtn .icon { font-size: 18px; margin-bottom: 2px; }
+  #aiBtn.loading { animation: btnPulse 1s ease-in-out infinite; }
+  @keyframes btnPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(74,222,128,0); }
+  }
+  #analyzingTip {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(10px);
+    color: #fff; font-size: 14px; padding: 14px 24px; border-radius: 16px;
+    display: none; z-index: 25; text-align: center;
+  }
+  #analyzingTip.show { display: block; }
+  #analyzingTip .spinner {
+    width: 28px; height: 28px; border: 3px solid rgba(255,255,255,0.2);
+    border-top-color: #4ade80; border-radius: 50%;
+    margin: 0 auto 8px; animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   #targetMarker { position: absolute; width: 72px; height: 72px;
     transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 10; }
   #targetMarker .ring { position: absolute; inset: 0; border: 2.5px solid #4ade80;
@@ -114,10 +144,20 @@
 <div id="wrap">
   <div id="topBar">
     <div id="status">点击开启相机</div>
-    <div id="advice"><div class="label">AI 构图建议</div>开启相机后，AI 将每隔几秒自动分析当前画面构图</div>
+    <div id="advice"><div class="label">AI 构图建议</div>点击画面选择主体，再点右下角 ✨ AI构图 按钮开始分析</div>
   </div>
   <div id="cameraArea">
     <video id="video" autoplay playsinline muted></video>
+    <button id="flipBtn">⇄</button>
+    <button id="aiBtn">
+      <span class="icon">✨</span>
+      <span>AI构图</span>
+    </button>
+    <div id="analyzingTip">
+      <div class="spinner"></div>
+      <div>正在分析画面…</div>
+      <div style="font-size:11px;opacity:0.7;margin-top:4px;">保持手机平稳</div>
+    </div>
     <div class="grid">
       <div class="v" style="left:33.33%"></div>
       <div class="v" style="left:66.66%"></div>
@@ -149,7 +189,7 @@
   <div id="bottomBar">
     <div id="lastPhoto"><span class="placeholder">🖼️</span><img id="lastPhotoImg" alt=""></div>
     <button id="shutterBtn"><div class="inner"></div></button>
-    <button id="flipBtn">⇄</button>
+    <div style="width:48px;"></div>
   </div>
   <div id="photoPreview">
     <img id="previewImg" alt="">
@@ -164,6 +204,8 @@ const statusEl = document.getElementById('status');
 const adviceEl = document.getElementById('advice');
 const startBtn = document.getElementById('startBtn');
 const flipBtn = document.getElementById('flipBtn');
+const aiBtn = document.getElementById('aiBtn');
+const analyzingTip = document.getElementById('analyzingTip');
 const bottomBar = document.getElementById('bottomBar');
 const shutterBtn = document.getElementById('shutterBtn');
 const flash = document.getElementById('flash');
@@ -172,7 +214,6 @@ const lastPhoto = document.getElementById('lastPhoto');
 let stream = null;
 let facing = 'environment';
 let busy = false;
-let timer = null;
 let subjectX = null;
 let subjectY = null;
 let hasSubject = false;
@@ -194,7 +235,7 @@ function selectSubject(clientX, clientY) {
   subjectMarker.style.top = (subjectY * 100) + '%';
   subjectMarker.style.display = 'block';
   hintEl.style.display = 'none';
-  setTimeout(analyze, 300);
+  statusEl.textContent = '已选主体，点击右下角 AI 构图开始分析';
 }
 cameraArea.addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
@@ -215,19 +256,24 @@ async function openCamera() {
     video.srcObject = stream;
     startBtn.style.display = 'none';
     flipBtn.style.display = 'flex';
+    aiBtn.style.display = 'flex';
     bottomBar.style.display = 'flex';
-    statusEl.textContent = '相机已开启';
-    if (timer) clearInterval(timer);
-    timer = setInterval(analyze, 5000);
-    setTimeout(analyze, 1500);
+    statusEl.textContent = '点击画面选主体，再点右下角 AI 构图';
   } catch (e) {
     statusEl.textContent = '相机失败：' + e.message;
   }
 }
+aiBtn.addEventListener('click', () => {
+  if (!busy && stream && video.videoWidth) {
+    analyze();
+  }
+});
 async function analyze() {
   if (busy || !stream || !video.videoWidth) return;
   busy = true;
   statusEl.textContent = '分析中…';
+  aiBtn.classList.add('loading');
+  analyzingTip.classList.add('show');
   try {
     const canvas = document.createElement('canvas');
     const w = video.videoWidth, h = video.videoHeight;
@@ -267,8 +313,11 @@ async function analyze() {
     }
   } catch (e) {
     statusEl.textContent = '网络错误：' + e.message;
+  } finally {
+    busy = false;
+    aiBtn.classList.remove('loading');
+    analyzingTip.classList.remove('show');
   }
-  busy = false;
 }
 function escapeHtml(s) {
   const d = document.createElement('div');
