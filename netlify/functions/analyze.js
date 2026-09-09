@@ -53,6 +53,8 @@ function parseJson(text) {
 }
 
 exports.handler = async (event) => {
+  console.log('[analyze] function started, method:', event.httpMethod);
+
   // CORS 预检
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -82,18 +84,25 @@ exports.handler = async (event) => {
 
     const apiKey = process.env.AI_API_KEY;
     const model = process.env.AI_MODEL;
+    const baseURL = process.env.AI_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3';
+    console.log('[analyze] env check - apiKey exists:', !!apiKey, 'model:', model, 'baseURL:', baseURL);
+
     if (!apiKey || !model) {
       return { statusCode: 500, body: JSON.stringify({ error: 'AI_API_KEY or AI_MODEL not configured' }) };
     }
 
     const client = new OpenAI({
-      baseURL: process.env.AI_BASE_URL || 'https://ark.cn-beijing.volces.com/api/v3',
+      baseURL,
       apiKey,
+      timeout: 25000, // 25秒超时，避免等到Netlify 30秒超时
     });
 
     const prompt = (subjectX != null && subjectY != null)
       ? buildSubjectPrompt(subjectX, subjectY)
       : PROMPT_GENERAL;
+
+    console.log('[analyze] calling AI API, model:', model, 'subject:', subjectX != null);
+    const startTime = Date.now();
 
     const resp = await client.chat.completions.create({
       model,
@@ -108,7 +117,12 @@ exports.handler = async (event) => {
       temperature: 0.7,
     });
 
+    const elapsed = Date.now() - startTime;
+    console.log('[analyze] AI API responded in', elapsed, 'ms');
+
     const text = (resp.choices[0].message.content || '').trim();
+    console.log('[analyze] response text length:', text.length, 'preview:', text.substring(0, 100));
+
     let result = parseJson(text);
     if (!result) {
       result = { advice: text, target_x: null, target_y: null, target_label: '' };
@@ -125,9 +139,10 @@ exports.handler = async (event) => {
       body: JSON.stringify(result),
     };
   } catch (e) {
+    console.error('[analyze] ERROR:', e.message, e.stack ? e.stack.substring(0, 300) : '');
     return {
       statusCode: 500,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
       body: JSON.stringify({ error: e.message || String(e) }),
     };
   }
