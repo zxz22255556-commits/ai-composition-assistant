@@ -90,13 +90,28 @@
     border-radius: 8px; white-space: nowrap; }
   #lineSvg { position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: 8; }
-  #alignTip { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    background: rgba(250,204,21,0.95); color: #0a0a0a; font-size: 14px; font-weight: 700;
-    padding: 8px 20px; border-radius: 20px; display: none; z-index: 20; }
-  #hint { position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
-    background: rgba(0,0,0,0.6); color: #fff; font-size: 12px; padding: 6px 14px;
-    border-radius: 14px; white-space: nowrap; z-index: 5; }
-  #bottomBar { flex-shrink: 0; z-index: 25; background: #000;
+  #centerCross { position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); width: 48px; height: 48px;
+    pointer-events: none; z-index: 7; opacity: 0.5; }
+  #centerCross .h { position: absolute; top: 50%; left: 0; right: 0;
+    height: 1px; background: #fff; transform: translateY(-50%); }
+  #centerCross .v { position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 1px; background: #fff; transform: translateX(-50%); }
+  #centerCross .dot { position: absolute; top: 50%; left: 50%;
+    width: 6px; height: 6px; background: #fff; border-radius: 50%;
+    transform: translate(-50%, -50%); }
+  #centerCross.aligned { opacity: 1; }
+  #centerCross.aligned .h, #centerCross.aligned .v, #centerCross.aligned .dot { background: #facc15; }
+  #alignTip { position: absolute; top: 12px;
+    left: 50%; transform: translateX(-50%); background: rgba(250,204,21,0.95);
+    color: #0a0a0a; font-size: 14px; font-weight: 700; padding: 8px 20px;
+    border-radius: 20px; display: none; z-index: 20; }
+  #hint { position: absolute; top: 12px;
+    left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6);
+    color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 14px;
+    white-space: nowrap; z-index: 5; }
+  #bottomBar { flex-shrink: 0; z-index: 25;
+    background: #000;
     padding: 16px 24px max(28px, env(safe-area-inset-bottom));
     display: none; align-items: center; justify-content: space-between; }
   #lastPhoto { width: 48px; height: 48px; border-radius: 8px; overflow: hidden;
@@ -144,7 +159,7 @@
 <div id="wrap">
   <div id="topBar">
     <div id="status">点击开启相机</div>
-    <div id="advice"><div class="label">AI 构图建议</div>点击画面选择主体，再点右下角 ✨ AI构图 按钮开始分析</div>
+    <div id="advice"><div class="label">AI 构图建议</div>点右下角 ✨ AI构图，移动手机让绿圈对准屏幕中心十字</div>
   </div>
   <div id="cameraArea">
     <video id="video" autoplay playsinline muted></video>
@@ -163,6 +178,11 @@
       <div class="v" style="left:66.66%"></div>
       <div class="h" style="top:33.33%"></div>
       <div class="h" style="top:66.66%"></div>
+    </div>
+    <div id="centerCross">
+      <div class="h"></div>
+      <div class="v"></div>
+      <div class="dot"></div>
     </div>
     <div id="targetMarker">
       <div class="ring"></div><div class="ring-inner"></div>
@@ -224,6 +244,7 @@ const targetMarker = document.getElementById('targetMarker');
 const guideLine = document.getElementById('guideLine');
 const alignTip = document.getElementById('alignTip');
 const hintEl = document.getElementById('hint');
+const centerCross = document.getElementById('centerCross');
 function selectSubject(clientX, clientY) {
   const rect = cameraArea.getBoundingClientRect();
   subjectX = (clientX - rect.left) / rect.width;
@@ -235,7 +256,7 @@ function selectSubject(clientX, clientY) {
   subjectMarker.style.top = (subjectY * 100) + '%';
   subjectMarker.style.display = 'block';
   hintEl.style.display = 'none';
-  statusEl.textContent = '已选主体，点击右下角 AI 构图开始分析';
+  statusEl.textContent = '已选主体，点右下角 AI构图 开始分析';
 }
 cameraArea.addEventListener('click', (e) => {
   if (e.target.closest('button')) return;
@@ -258,7 +279,7 @@ async function openCamera() {
     flipBtn.style.display = 'flex';
     aiBtn.style.display = 'flex';
     bottomBar.style.display = 'flex';
-    statusEl.textContent = '点击画面选主体，再点右下角 AI 构图';
+    statusEl.textContent = '点右下角 AI构图，移动手机让绿圈对准中心十字';
   } catch (e) {
     statusEl.textContent = '相机失败：' + e.message;
   }
@@ -310,6 +331,7 @@ async function analyze() {
       targetMarker.style.display = 'none';
       guideLine.style.display = 'none';
       alignTip.style.display = 'none';
+      centerCross.classList.remove('aligned');
     }
   } catch (e) {
     statusEl.textContent = '网络错误：' + e.message;
@@ -325,10 +347,9 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 function updateLine(tx, ty) {
-  if (!hasSubject) { guideLine.style.display = 'none'; return; }
   const rect = cameraArea.getBoundingClientRect();
-  const sx = subjectX * rect.width;
-  const sy = subjectY * rect.height;
+  const sx = 0.5 * rect.width;
+  const sy = 0.5 * rect.height;
   const ex = tx * rect.width;
   const ey = ty * rect.height;
   const dx = ex - sx, dy = ey - sy;
@@ -343,16 +364,17 @@ function updateLine(tx, ty) {
   guideLine.style.display = 'block';
 }
 function checkAlignment(tx, ty) {
-  if (!hasSubject) { alignTip.style.display = 'none'; targetMarker.classList.remove('aligned'); return; }
-  const dx = subjectX - tx;
-  const dy = subjectY - ty;
+  const dx = 0.5 - tx;
+  const dy = 0.5 - ty;
   const dist = Math.sqrt(dx*dx + dy*dy);
   if (dist < 0.06) {
     alignTip.style.display = 'block';
     targetMarker.classList.add('aligned');
+    centerCross.classList.add('aligned');
   } else {
     alignTip.style.display = 'none';
     targetMarker.classList.remove('aligned');
+    centerCross.classList.remove('aligned');
   }
 }
 function takePhoto() {
@@ -388,7 +410,7 @@ lastPhoto.addEventListener('click', () => {
   }
 });
 window.addEventListener('resize', () => {
-  if (targetMarker.style.display === 'block' && hasSubject) {
+  if (targetMarker.style.display === 'block') {
     const left = parseFloat(targetMarker.style.left) / 100;
     const top = parseFloat(targetMarker.style.top) / 100;
     updateLine(left, top);
