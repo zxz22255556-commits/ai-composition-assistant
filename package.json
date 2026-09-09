@@ -1,0 +1,8 @@
+{
+  "name": "ai-composition-assistant",
+  "version": "1.0.0",
+  "description": "AI 构图助手 - 手机实时构图指导",
+  "dependencies": {
+    "openai": "^4.67.0"
+  }
+}

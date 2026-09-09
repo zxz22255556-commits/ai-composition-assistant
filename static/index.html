@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>AI 构图助手</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { width: 100%; height: 100%; background: #000; color: #fff;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
+    overflow: hidden; position: fixed; }
+  #wrap { position: relative; width: 100vw; height: 100vh; height: 100dvh; }
+  #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  /* 三分法网格 */
+  .grid { position: absolute; inset: 0; pointer-events: none; }
+  .grid .v { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.28); }
+  .grid .h { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.28); }
+
+  /* 顶部状态 */
+  #status { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 50%;
+    transform: translateX(-50%); background: rgba(0,0,0,0.55); padding: 6px 16px;
+    border-radius: 20px; font-size: 13px; backdrop-filter: blur(8px); white-space: nowrap; }
+
+  /* 底部建议浮层 */
+  #advice { position: absolute; left: 0; right: 0; bottom: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.85) 30%);
+    padding: 40px 20px max(24px, env(safe-area-inset-bottom));
+    font-size: 16px; line-height: 1.6; min-height: 110px; }
+  #advice .label { font-size: 12px; color: #94D8C3; margin-bottom: 6px; font-weight: 600; }
+
+  /* 开始按钮 */
+  #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    padding: 18px 36px; font-size: 18px; font-weight: 600; background: #fff; color: #000;
+    border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+  #startBtn:active { transform: translate(-50%,-50%) scale(0.96); }
+
+  /* 切换前后摄按钮 */
+  #flipBtn { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px;
+    width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.55);
+    border: none; color: #fff; font-size: 20px; cursor: pointer; backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; }
+
+  /* AI 目标点标记 */
+  #targetMarker { position: absolute; width: 72px; height: 72px;
+    transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 10; }
+  #targetMarker .ring { position: absolute; inset: 0; border: 2.5px solid #4ade80;
+    border-radius: 50%; animation: pulse 1.8s ease-in-out infinite; }
+  #targetMarker .ring-inner { position: absolute; inset: 22px; border: 1.5px solid #4ade80;
+    border-radius: 50%; opacity: 0.7; }
+  #targetMarker .cross-h { position: absolute; top: 50%; left: 8%; right: 8%;
+    height: 1.5px; background: #4ade80; transform: translateY(-50%); }
+  #targetMarker .cross-v { position: absolute; left: 50%; top: 8%; bottom: 8%;
+    width: 1.5px; background: #4ade80; transform: translateX(-50%); }
+  #targetMarker .label { position: absolute; top: 100%; left: 50%;
+    transform: translateX(-50%); margin-top: 8px; background: rgba(74,222,128,0.92);
+    color: #0a0a0a; font-size: 12px; font-weight: 700; padding: 3px 10px;
+    border-radius: 10px; white-space: nowrap; letter-spacing: 0.5px; }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.18); opacity: 0.55; }
+  }
+
+  /* 目标点对齐时变金色 */
+  #targetMarker.aligned .ring { border-color: #facc15; animation: none; }
+  #targetMarker.aligned .ring-inner { border-color: #facc15; }
+  #targetMarker.aligned .cross-h, #targetMarker.aligned .cross-v { background: #facc15; }
+  #targetMarker.aligned .label { background: rgba(250,204,21,0.92); }
+
+  /* 当前主体标记（用户点击选择的，蓝色） */
+  #subjectMarker { position: absolute; width: 56px; height: 56px;
+    transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 9; }
+  #subjectMarker .ring { position: absolute; inset: 0; border: 2.5px solid #60a5fa;
+    border-radius: 50%; background: rgba(96,165,250,0.15); }
+  #subjectMarker .dot { position: absolute; top: 50%; left: 50%; width: 8px; height: 8px;
+    background: #60a5fa; border-radius: 50%; transform: translate(-50%,-50%); }
+  #subjectMarker .label { position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%); margin-bottom: 6px; background: rgba(96,165,250,0.92);
+    color: #0a0a0a; font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 8px; white-space: nowrap; }
+
+  /* SVG 连线层 */
+  #lineSvg { position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 8; }
+
+  /* 对齐提示 */
+  #alignTip { position: absolute; top: max(60px, calc(env(safe-area-inset-top) + 52px));
+    left: 50%; transform: translateX(-50%); background: rgba(250,204,21,0.95);
+    color: #0a0a0a; font-size: 14px; font-weight: 700; padding: 8px 20px;
+    border-radius: 20px; display: none; z-index: 20; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+
+  /* 操作提示 */
+  #hint { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px));
+    left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6);
+    color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 14px;
+    backdrop-filter: blur(8px); white-space: nowrap; z-index: 5; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <video id="video" autoplay playsinline muted></video>
+  <div class="grid">
+    <div class="v" style="left:33.33%"></div>
+    <div class="v" style="left:66.66%"></div>
+    <div class="h" style="top:33.33%"></div>
+    <div class="h" style="top:66.66%"></div>
+  </div>
+  <div id="status">点击开启相机</div>
+  <button id="flipBtn">⇄</button>
+  <div id="targetMarker">
+    <div class="ring"></div>
+    <div class="ring-inner"></div>
+    <div class="cross-h"></div>
+    <div class="cross-v"></div>
+    <div class="label">主体放这里</div>
+  </div>
+  <div id="subjectMarker">
+    <div class="ring"></div>
+    <div class="dot"></div>
+    <div class="label">当前主体</div>
+  </div>
+  <svg id="lineSvg" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(255,255,255,0.85)"/>
+      </marker>
+    </defs>
+    <line id="guideLine" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)" style="display:none"/>
+  </svg>
+  <div id="alignTip">✓ 构图已对齐</div>
+  <div id="hint">点击画面选择要拍的主体</div>
+  <div id="advice"><div class="label">AI 构图建议</div>开启相机后，AI 将每隔几秒自动分析当前画面构图</div>
+  <button id="startBtn">开启相机</button>
+</div>
+
+<script>
+const video   = document.getElementById('video');
+const statusEl= document.getElementById('status');
+const adviceEl= document.getElementById('advice');
+const startBtn= document.getElementById('startBtn');
+const flipBtn = document.getElementById('flipBtn');
+
+let stream = null;
+let facing = 'environment';
+let busy = false;
+let timer = null;
+let subjectX = null;
+let subjectY = null;
+let hasSubject = false;
+
+const wrap = document.getElementById('wrap');
+const subjectMarker = document.getElementById('subjectMarker');
+const targetMarker = document.getElementById('targetMarker');
+const guideLine = document.getElementById('guideLine');
+const alignTip = document.getElementById('alignTip');
+const hintEl = document.getElementById('hint');
+
+// 点击/触摸选择主体
+function selectSubject(clientX, clientY) {
+  const rect = wrap.getBoundingClientRect();
+  subjectX = (clientX - rect.left) / rect.width;
+  subjectY = (clientY - rect.top) / rect.height;
+  // 限制在 0-1
+  subjectX = Math.max(0, Math.min(1, subjectX));
+  subjectY = Math.max(0, Math.min(1, subjectY));
+  hasSubject = true;
+  subjectMarker.style.left = (subjectX * 100) + '%';
+  subjectMarker.style.top = (subjectY * 100) + '%';
+  subjectMarker.style.display = 'block';
+  hintEl.style.display = 'none';
+  // 立即分析一次
+  setTimeout(analyze, 300);
+}
+
+wrap.addEventListener('click', (e) => {
+  // 忽略按钮点击
+  if (e.target.tagName === 'BUTTON') return;
+  selectSubject(e.clientX, e.clientY);
+});
+
+wrap.addEventListener('touchstart', (e) => {
+  if (e.target.tagName === 'BUTTON') return;
+  const t = e.touches[0];
+  selectSubject(t.clientX, t.clientY);
+}, { passive: true });
+
+async function openCamera() {
+  try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: facing, width: { ideal: 1280 } },
+      audio: false
+    });
+    video.srcObject = stream;
+    startBtn.style.display = 'none';
+    flipBtn.style.display = 'flex';
+    statusEl.textContent = '相机已开启';
+    if (timer) clearInterval(timer);
+    timer = setInterval(analyze, 5000); // 每5秒分析一次
+    setTimeout(analyze, 1500); // 1.5秒后先分析一次
+  } catch (e) {
+    statusEl.textContent = '相机失败：' + e.message;
+  }
+}
+
+async function analyze() {
+  if (busy || !stream || !video.videoWidth) return;
+  busy = true;
+  statusEl.textContent = '分析中…';
+  try {
+    const canvas = document.createElement('canvas');
+    const w = video.videoWidth, h = video.videoHeight;
+    // 缩放到长边 640，减少传输量
+    const scale = Math.min(1, 640 / Math.max(w, h));
+    canvas.width = Math.round(w * scale);
+    canvas.height = Math.round(h * scale);
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = canvas.toDataURL('image/jpeg', 0.72);
+
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: img,
+        subject_x: hasSubject ? subjectX : null,
+        subject_y: hasSubject ? subjectY : null
+      })
+    });
+    const data = await res.json();
+    if (data.advice) {
+      adviceEl.innerHTML = '<div class="label">AI 构图建议</div>' + escapeHtml(data.advice);
+      statusEl.textContent = '建议已更新';
+    } else {
+      statusEl.textContent = '分析失败：' + (data.error || '未知错误');
+    }
+    // 显示 AI 目标点
+    if (data.target_x != null && data.target_y != null && data.target_x >= 0 && data.target_x <= 1 && data.target_y >= 0 && data.target_y <= 1) {
+      targetMarker.style.left = (data.target_x * 100) + '%';
+      targetMarker.style.top = (data.target_y * 100) + '%';
+      targetMarker.style.display = 'block';
+      const label = targetMarker.querySelector('.label');
+      if (label && data.target_label) label.textContent = data.target_label;
+      // 画连线 + 对齐检测
+      updateLine(data.target_x, data.target_y);
+      checkAlignment(data.target_x, data.target_y);
+    } else {
+      targetMarker.style.display = 'none';
+      guideLine.style.display = 'none';
+      alignTip.style.display = 'none';
+    }
+  } catch (e) {
+    statusEl.textContent = '网络错误：' + e.message;
+  }
+  busy = false;
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// 画从当前主体到目标位置的连线
+function updateLine(tx, ty) {
+  if (!hasSubject) { guideLine.style.display = 'none'; return; }
+  const rect = wrap.getBoundingClientRect();
+  const sx = subjectX * rect.width;
+  const sy = subjectY * rect.height;
+  const ex = tx * rect.width;
+  const ey = ty * rect.height;
+  // 箭头终点稍微缩进，避免压在目标圈上
+  const dx = ex - sx, dy = ey - sy;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  const shrink = dist > 36 ? 30 : dist * 0.5;
+  const ex2 = dist > 0 ? ex - dx/dist * shrink : ex;
+  const ey2 = dist > 0 ? ey - dy/dist * shrink : ey;
+  guideLine.setAttribute('x1', sx);
+  guideLine.setAttribute('y1', sy);
+  guideLine.setAttribute('x2', ex2);
+  guideLine.setAttribute('y2', ey2);
+  guideLine.style.display = 'block';
+}
+
+// 检测主体是否对齐目标位置
+function checkAlignment(tx, ty) {
+  if (!hasSubject) { alignTip.style.display = 'none'; targetMarker.classList.remove('aligned'); return; }
+  const dx = subjectX - tx;
+  const dy = subjectY - ty;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist < 0.06) {
+    alignTip.style.display = 'block';
+    targetMarker.classList.add('aligned');
+  } else {
+    alignTip.style.display = 'none';
+    targetMarker.classList.remove('aligned');
+  }
+}
+
+// 窗口大小变化时重画连线
+window.addEventListener('resize', () => {
+  if (targetMarker.style.display === 'block' && hasSubject) {
+    const left = parseFloat(targetMarker.style.left) / 100;
+    const top = parseFloat(targetMarker.style.top) / 100;
+    updateLine(left, top);
+  }
+});
+
+startBtn.addEventListener('click', openCamera);
+flipBtn.addEventListener('click', () => {
+  facing = facing === 'environment' ? 'user' : 'environment';
+  openCamera();
+});
+</script>
+</body>
+</html>

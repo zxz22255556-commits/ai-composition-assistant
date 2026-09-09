@@ -1,0 +1,9 @@
+[build]
+  publish = "static"
+  functions = "netlify/functions"
+
+# 把 /api/analyze 重定向到 Netlify Function
+[[redirects]]
+  from = "/api/analyze"
+  to = "/.netlify/functions/analyze"
+  status = 200
