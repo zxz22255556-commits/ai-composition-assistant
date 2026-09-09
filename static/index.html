@@ -237,6 +237,8 @@ let busy = false;
 let subjectX = null;
 let subjectY = null;
 let hasSubject = false;
+let lastTargetX = null;
+let lastTargetY = null;
 const wrap = document.getElementById('wrap');
 const cameraArea = document.getElementById('cameraArea');
 const subjectMarker = document.getElementById('subjectMarker');
@@ -320,6 +322,8 @@ async function analyze() {
       statusEl.textContent = '分析失败：' + (data.error || '未知错误');
     }
     if (data.target_x != null && data.target_y != null && data.target_x >= 0 && data.target_x <= 1 && data.target_y >= 0 && data.target_y <= 1) {
+      lastTargetX = data.target_x;
+      lastTargetY = data.target_y;
       targetMarker.style.left = (data.target_x * 100) + '%';
       targetMarker.style.top = (data.target_y * 100) + '%';
       targetMarker.style.display = 'block';
@@ -327,6 +331,8 @@ async function analyze() {
       if (label && data.target_label) label.textContent = data.target_label;
       updateLine(data.target_x, data.target_y);
       checkAlignment(data.target_x, data.target_y);
+    } else if (lastTargetX != null && lastTargetY != null) {
+      statusEl.textContent = '保留上次构图建议';
     } else {
       targetMarker.style.display = 'none';
       guideLine.style.display = 'none';
