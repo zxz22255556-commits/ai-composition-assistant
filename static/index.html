@@ -16,32 +16,25 @@
 
   /* 三分法网格 */
   .grid { position: absolute; inset: 0; pointer-events: none; }
-  .grid .v { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.28); }
-  .grid .h { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.28); }
+  .grid .v { position: absolute; top: 0; bottom: 0; width: 1px; background: rgba(255,255,255,0.3); }
+  .grid .h { position: absolute; left: 0; right: 0; height: 1px; background: rgba(255,255,255,0.3); }
 
-  /* 顶部状态 */
-  #status { position: absolute; top: max(16px, env(safe-area-inset-top)); left: 50%;
-    transform: translateX(-50%); background: rgba(0,0,0,0.55); padding: 6px 16px;
-    border-radius: 20px; font-size: 13px; backdrop-filter: blur(8px); white-space: nowrap; }
+  /* 顶部 AI 建议条 */
+  #topBar { position: absolute; top: 0; left: 0; right: 0; z-index: 15;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.65), transparent);
+    padding: max(14px, env(safe-area-inset-top)) 16px 24px;
+    pointer-events: none; }
+  #status { display: inline-block; background: rgba(0,0,0,0.5); padding: 5px 14px;
+    border-radius: 20px; font-size: 12px; backdrop-filter: blur(8px); margin-bottom: 8px; }
+  #advice { font-size: 14px; line-height: 1.5; text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    max-height: 64px; overflow: hidden; }
+  #advice .label { font-size: 11px; color: #94D8C3; font-weight: 600; margin-bottom: 2px; }
 
-  /* 底部建议浮层 */
-  #advice { position: absolute; left: 0; right: 0; bottom: 0;
-    background: linear-gradient(transparent, rgba(0,0,0,0.85) 30%);
-    padding: 40px 20px max(24px, env(safe-area-inset-bottom));
-    font-size: 16px; line-height: 1.6; min-height: 110px; }
-  #advice .label { font-size: 12px; color: #94D8C3; margin-bottom: 6px; font-weight: 600; }
-
-  /* 开始按钮 */
-  #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
-    padding: 18px 36px; font-size: 18px; font-weight: 600; background: #fff; color: #000;
-    border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
-  #startBtn:active { transform: translate(-50%,-50%) scale(0.96); }
-
-  /* 切换前后摄按钮 */
-  #flipBtn { position: absolute; top: max(16px, env(safe-area-inset-top)); right: 16px;
-    width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,0.55);
-    border: none; color: #fff; font-size: 20px; cursor: pointer; backdrop-filter: blur(8px);
-    display: none; align-items: center; justify-content: center; }
+  /* 右上角前后摄切换 */
+  #flipBtn { position: absolute; top: max(14px, env(safe-area-inset-top)); right: 16px;
+    width: 40px; height: 40px; border-radius: 50%; background: rgba(0,0,0,0.5);
+    border: none; color: #fff; font-size: 18px; cursor: pointer; backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; z-index: 20; }
 
   /* AI 目标点标记 */
   #targetMarker { position: absolute; width: 72px; height: 72px;
@@ -57,19 +50,17 @@
   #targetMarker .label { position: absolute; top: 100%; left: 50%;
     transform: translateX(-50%); margin-top: 8px; background: rgba(74,222,128,0.92);
     color: #0a0a0a; font-size: 12px; font-weight: 700; padding: 3px 10px;
-    border-radius: 10px; white-space: nowrap; letter-spacing: 0.5px; }
+    border-radius: 10px; white-space: nowrap; }
   @keyframes pulse {
     0%, 100% { transform: scale(1); opacity: 1; }
     50% { transform: scale(1.18); opacity: 0.55; }
   }
-
-  /* 目标点对齐时变金色 */
   #targetMarker.aligned .ring { border-color: #facc15; animation: none; }
   #targetMarker.aligned .ring-inner { border-color: #facc15; }
   #targetMarker.aligned .cross-h, #targetMarker.aligned .cross-v { background: #facc15; }
   #targetMarker.aligned .label { background: rgba(250,204,21,0.92); }
 
-  /* 当前主体标记（用户点击选择的，蓝色） */
+  /* 当前主体标记（蓝色） */
   #subjectMarker { position: absolute; width: 56px; height: 56px;
     transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 9; }
   #subjectMarker .ring { position: absolute; inset: 0; border: 2.5px solid #60a5fa;
@@ -86,16 +77,58 @@
     pointer-events: none; z-index: 8; }
 
   /* 对齐提示 */
-  #alignTip { position: absolute; top: max(60px, calc(env(safe-area-inset-top) + 52px));
+  #alignTip { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px));
     left: 50%; transform: translateX(-50%); background: rgba(250,204,21,0.95);
     color: #0a0a0a; font-size: 14px; font-weight: 700; padding: 8px 20px;
-    border-radius: 20px; display: none; z-index: 20; box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+    border-radius: 20px; display: none; z-index: 20; }
 
   /* 操作提示 */
-  #hint { position: absolute; top: max(56px, calc(env(safe-area-inset-top) + 48px));
+  #hint { position: absolute; top: max(52px, calc(env(safe-area-inset-top) + 44px));
     left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6);
     color: #fff; font-size: 12px; padding: 6px 14px; border-radius: 14px;
     backdrop-filter: blur(8px); white-space: nowrap; z-index: 5; }
+
+  /* 底部控制栏（苹果相机风格） */
+  #bottomBar { position: absolute; bottom: 0; left: 0; right: 0; z-index: 25;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    padding: 20px 24px max(28px, env(safe-area-inset-bottom));
+    display: none; align-items: center; justify-content: space-between; }
+
+  /* 最近照片缩略图 */
+  #lastPhoto { width: 48px; height: 48px; border-radius: 8px; overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.8); background: rgba(255,255,255,0.1);
+    display: flex; align-items: center; justify-content: center; cursor: pointer; }
+  #lastPhoto img { width: 100%; height: 100%; object-fit: cover; display: none; }
+  #lastPhoto .placeholder { font-size: 20px; opacity: 0.5; }
+
+  /* 快门按钮（苹果风格） */
+  #shutterBtn { width: 72px; height: 72px; border-radius: 50%;
+    border: 4px solid #fff; background: transparent; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s ease; padding: 0; }
+  #shutterBtn .inner { width: 56px; height: 56px; border-radius: 50%;
+    background: #fff; transition: transform 0.1s ease; }
+  #shutterBtn:active { transform: scale(0.92); }
+  #shutterBtn:active .inner { transform: scale(0.85); }
+
+  /* 右侧占位（保持快门居中） */
+  #rightPlaceholder { width: 48px; height: 48px; }
+
+  /* 快门白屏闪烁 */
+  #flash { position: absolute; inset: 0; background: #fff; opacity: 0;
+    pointer-events: none; z-index: 30; }
+  #flash.active { animation: flashAnim 0.3s ease-out; }
+  @keyframes flashAnim {
+    0% { opacity: 0.9; }
+    100% { opacity: 0; }
+  }
+
+  /* 开始按钮 */
+  #startBtn { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    padding: 18px 36px; font-size: 18px; font-weight: 600; background: #fff; color: #000;
+    border: none; border-radius: 14px; cursor: pointer; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    z-index: 40; }
+  #startBtn:active { transform: translate(-50%,-50%) scale(0.96); }
 </style>
 </head>
 <body>
@@ -107,8 +140,16 @@
     <div class="h" style="top:33.33%"></div>
     <div class="h" style="top:66.66%"></div>
   </div>
-  <div id="status">点击开启相机</div>
+
+  <!-- 顶部 AI 建议 -->
+  <div id="topBar">
+    <div id="status">点击开启相机</div>
+    <div id="advice"><div class="label">AI 构图建议</div>开启相机后，AI 将每隔几秒自动分析当前画面构图</div>
+  </div>
+
   <button id="flipBtn">⇄</button>
+
+  <!-- 标记层 -->
   <div id="targetMarker">
     <div class="ring"></div>
     <div class="ring-inner"></div>
@@ -129,9 +170,20 @@
     </defs>
     <line id="guideLine" x1="0" y1="0" x2="0" y2="0" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-dasharray="6,4" marker-end="url(#arrow)" style="display:none"/>
   </svg>
+
   <div id="alignTip">✓ 构图已对齐</div>
   <div id="hint">点击画面选择要拍的主体</div>
-  <div id="advice"><div class="label">AI 构图建议</div>开启相机后，AI 将每隔几秒自动分析当前画面构图</div>
+
+  <!-- 快门闪烁 -->
+  <div id="flash"></div>
+
+  <!-- 底部控制栏 -->
+  <div id="bottomBar">
+    <div id="lastPhoto"><span class="placeholder">🖼️</span><img id="lastPhotoImg" alt=""></div>
+    <button id="shutterBtn"><div class="inner"></div></button>
+    <div id="rightPlaceholder"></div>
+  </div>
+
   <button id="startBtn">开启相机</button>
 </div>
 
@@ -141,6 +193,11 @@ const statusEl= document.getElementById('status');
 const adviceEl= document.getElementById('advice');
 const startBtn= document.getElementById('startBtn');
 const flipBtn = document.getElementById('flipBtn');
+const bottomBar = document.getElementById('bottomBar');
+const shutterBtn = document.getElementById('shutterBtn');
+const flash = document.getElementById('flash');
+const lastPhotoImg = document.getElementById('lastPhotoImg');
+const lastPhoto = document.getElementById('lastPhoto');
 
 let stream = null;
 let facing = 'environment';
@@ -162,7 +219,6 @@ function selectSubject(clientX, clientY) {
   const rect = wrap.getBoundingClientRect();
   subjectX = (clientX - rect.left) / rect.width;
   subjectY = (clientY - rect.top) / rect.height;
-  // 限制在 0-1
   subjectX = Math.max(0, Math.min(1, subjectX));
   subjectY = Math.max(0, Math.min(1, subjectY));
   hasSubject = true;
@@ -170,18 +226,16 @@ function selectSubject(clientX, clientY) {
   subjectMarker.style.top = (subjectY * 100) + '%';
   subjectMarker.style.display = 'block';
   hintEl.style.display = 'none';
-  // 立即分析一次
   setTimeout(analyze, 300);
 }
 
 wrap.addEventListener('click', (e) => {
-  // 忽略按钮点击
-  if (e.target.tagName === 'BUTTON') return;
+  if (e.target.closest('button')) return;
   selectSubject(e.clientX, e.clientY);
 });
 
 wrap.addEventListener('touchstart', (e) => {
-  if (e.target.tagName === 'BUTTON') return;
+  if (e.target.closest('button')) return;
   const t = e.touches[0];
   selectSubject(t.clientX, t.clientY);
 }, { passive: true });
@@ -190,16 +244,17 @@ async function openCamera() {
   try {
     if (stream) stream.getTracks().forEach(t => t.stop());
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: facing, width: { ideal: 1280 } },
+      video: { facingMode: facing, width: { ideal: 1920 } },
       audio: false
     });
     video.srcObject = stream;
     startBtn.style.display = 'none';
     flipBtn.style.display = 'flex';
+    bottomBar.style.display = 'flex';
     statusEl.textContent = '相机已开启';
     if (timer) clearInterval(timer);
-    timer = setInterval(analyze, 5000); // 每5秒分析一次
-    setTimeout(analyze, 1500); // 1.5秒后先分析一次
+    timer = setInterval(analyze, 5000);
+    setTimeout(analyze, 1500);
   } catch (e) {
     statusEl.textContent = '相机失败：' + e.message;
   }
@@ -212,7 +267,6 @@ async function analyze() {
   try {
     const canvas = document.createElement('canvas');
     const w = video.videoWidth, h = video.videoHeight;
-    // 缩放到长边 640，减少传输量
     const scale = Math.min(1, 640 / Math.max(w, h));
     canvas.width = Math.round(w * scale);
     canvas.height = Math.round(h * scale);
@@ -235,14 +289,12 @@ async function analyze() {
     } else {
       statusEl.textContent = '分析失败：' + (data.error || '未知错误');
     }
-    // 显示 AI 目标点
     if (data.target_x != null && data.target_y != null && data.target_x >= 0 && data.target_x <= 1 && data.target_y >= 0 && data.target_y <= 1) {
       targetMarker.style.left = (data.target_x * 100) + '%';
       targetMarker.style.top = (data.target_y * 100) + '%';
       targetMarker.style.display = 'block';
       const label = targetMarker.querySelector('.label');
       if (label && data.target_label) label.textContent = data.target_label;
-      // 画连线 + 对齐检测
       updateLine(data.target_x, data.target_y);
       checkAlignment(data.target_x, data.target_y);
     } else {
@@ -262,7 +314,6 @@ function escapeHtml(s) {
   return d.innerHTML;
 }
 
-// 画从当前主体到目标位置的连线
 function updateLine(tx, ty) {
   if (!hasSubject) { guideLine.style.display = 'none'; return; }
   const rect = wrap.getBoundingClientRect();
@@ -270,7 +321,6 @@ function updateLine(tx, ty) {
   const sy = subjectY * rect.height;
   const ex = tx * rect.width;
   const ey = ty * rect.height;
-  // 箭头终点稍微缩进，避免压在目标圈上
   const dx = ex - sx, dy = ey - sy;
   const dist = Math.sqrt(dx*dx + dy*dy);
   const shrink = dist > 36 ? 30 : dist * 0.5;
@@ -283,7 +333,6 @@ function updateLine(tx, ty) {
   guideLine.style.display = 'block';
 }
 
-// 检测主体是否对齐目标位置
 function checkAlignment(tx, ty) {
   if (!hasSubject) { alignTip.style.display = 'none'; targetMarker.classList.remove('aligned'); return; }
   const dx = subjectX - tx;
@@ -298,7 +347,49 @@ function checkAlignment(tx, ty) {
   }
 }
 
-// 窗口大小变化时重画连线
+// 拍照功能
+function takePhoto() {
+  if (!stream || !video.videoWidth) return;
+  // 快门动画
+  flash.classList.remove('active');
+  void flash.offsetWidth;
+  flash.classList.add('active');
+
+  // 用原始分辨率捕获
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  // 前置摄像头镜像
+  if (facing === 'user') {
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+  }
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+  // 更新左下角缩略图
+  lastPhotoImg.src = dataUrl;
+  lastPhotoImg.style.display = 'block';
+  lastPhoto.querySelector('.placeholder').style.display = 'none';
+
+  // 下载到手机
+  const link = document.createElement('a');
+  link.download = 'photo_' + Date.now() + '.jpg';
+  link.href = dataUrl;
+  link.click();
+}
+
+shutterBtn.addEventListener('click', takePhoto);
+
+// 点击缩略图查看大图
+lastPhoto.addEventListener('click', () => {
+  if (lastPhotoImg.src) {
+    window.open(lastPhotoImg.src, '_blank');
+  }
+});
+
 window.addEventListener('resize', () => {
   if (targetMarker.style.display === 'block' && hasSubject) {
     const left = parseFloat(targetMarker.style.left) / 100;
